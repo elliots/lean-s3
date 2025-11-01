@@ -387,6 +387,7 @@ export type ListObjectsResult = {
 	keyCount: number;
 	nextContinuationToken: string | undefined;
 	contents: readonly S3BucketEntry[];
+	commonPrefixes: readonly string[];
 };
 
 export type BucketCreationOptions = {
@@ -1498,6 +1499,13 @@ export default class S3Client {
 			keyCount: res.KeyCount,
 			nextContinuationToken: res.NextContinuationToken,
 			contents: res.Contents?.map(S3BucketEntry.parse) ?? [],
+			commonPrefixes: Array.isArray(res.CommonPrefixes)
+				? res.CommonPrefixes.map((cp: any) => cp.Prefix).filter(
+						(p: any) => typeof p === "string",
+					)
+				: res.CommonPrefixes?.Prefix
+					? [res.CommonPrefixes.Prefix]
+					: [],
 		};
 	}
 
