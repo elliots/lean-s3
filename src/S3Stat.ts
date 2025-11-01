@@ -3,12 +3,20 @@ export default class S3Stat {
 	readonly lastModified: Date;
 	readonly size: number;
 	readonly type: string;
+	readonly versionId: string | undefined;
 
-	constructor(etag: string, lastModified: Date, size: number, type: string) {
+	constructor(
+		etag: string,
+		lastModified: Date,
+		size: number,
+		type: string,
+		versionId?: string,
+	) {
 		this.etag = etag;
 		this.lastModified = lastModified;
 		this.size = size;
 		this.type = type;
+		this.versionId = versionId;
 	}
 
 	static tryParseFromHeaders(
@@ -39,6 +47,10 @@ export default class S3Stat {
 			return undefined;
 		}
 
-		return new S3Stat(etag, new Date(lm), size, ct);
+		const versionId = headers["x-amz-version-id"];
+		const parsedVersionId =
+			typeof versionId === "string" ? versionId : undefined;
+
+		return new S3Stat(etag, new Date(lm), size, ct, parsedVersionId);
 	}
 }

@@ -1728,12 +1728,17 @@ export default class S3Client {
 		contentHash: Buffer | undefined,
 		rageStart: number | undefined,
 		rangeEndExclusive: number | undefined,
+		versionId: string | undefined,
 	): ReadableStream<Uint8Array> {
 		const bucket = this.#options.bucket;
 		const endpoint = this.#options.endpoint;
 		const region = this.#options.region;
 		const now = amzDate.now();
 		const url = buildRequestUrl(endpoint, bucket, region, path);
+
+		if (versionId) {
+			url.search = `versionId=${encodeURIComponent(versionId)}`;
+		}
 
 		const range = getRangeHeader(rageStart, rangeEndExclusive);
 

@@ -99,13 +99,17 @@ export default class S3File {
 		const [region, endpoint, bucket] =
 			this.#client[kGetEffectiveParams](options);
 
+		const query = options.versionId
+			? `versionId=${encodeURIComponent(options.versionId)}`
+			: undefined;
+
 		const response = await this.#client[kSignedRequest](
 			region,
 			endpoint,
 			bucket,
 			"HEAD",
 			this.#path,
-			undefined,
+			query,
 			undefined,
 			undefined,
 			undefined,
@@ -144,13 +148,17 @@ export default class S3File {
 		const [region, endpoint, bucket] =
 			this.#client[kGetEffectiveParams](options);
 
+		const query = options.versionId
+			? `versionId=${encodeURIComponent(options.versionId)}`
+			: undefined;
+
 		const response = await this.#client[kSignedRequest](
 			region,
 			endpoint,
 			bucket,
 			"HEAD",
 			this.#path,
-			undefined,
+			query,
 			undefined,
 			undefined,
 			undefined,
@@ -181,8 +189,7 @@ export default class S3File {
 	/**
 	 * Delete a file from the bucket.
 	 *
-	 * @remarks - Uses [`DeleteObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html).
-	 *          - `versionId` not supported.
+	 * @remarks Uses [`DeleteObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html).
 	 *
 	 * @param {S3FileDeleteOptions} [options]
 	 *
@@ -190,6 +197,9 @@ export default class S3File {
 	 * ```js
 	 * // Simple delete
 	 * await client.delete("old-file.txt");
+	 *
+	 * // Delete a specific version
+	 * await client.delete("file.txt", { versionId: "abc123" });
 	 *
 	 * // With error handling
 	 * try {
@@ -204,13 +214,17 @@ export default class S3File {
 		const [region, endpoint, bucket] =
 			this.#client[kGetEffectiveParams](options);
 
+		const query = options.versionId
+			? `versionId=${encodeURIComponent(options.versionId)}`
+			: undefined;
+
 		const response = await this.#client[kSignedRequest](
 			region,
 			endpoint,
 			bucket,
 			"DELETE",
 			this.#path,
-			undefined,
+			query,
 			undefined,
 			undefined,
 			undefined,
@@ -231,30 +245,37 @@ export default class S3File {
 		return `S3File { path: "${this.#path}" }`;
 	}
 
-	json(): Promise<unknown> {
+	json(options?: S3FileReadOptions): Promise<unknown> {
 		// Not using JSON.parse(await this.text()), so the env can parse json while loading
-		return new Response(this.stream()).json();
+		return new Response(this.stream(options)).json();
 	}
-	bytes(): Promise<Uint8Array> {
-		return new Response(this.stream())
+	bytes(options?: S3FileReadOptions): Promise<Uint8Array> {
+		return new Response(this.stream(options))
 			.arrayBuffer()
 			.then(ab => new Uint8Array(ab));
 	}
-	arrayBuffer(): Promise<ArrayBuffer> {
-		return new Response(this.stream()).arrayBuffer();
+	arrayBuffer(options?: S3FileReadOptions): Promise<ArrayBuffer> {
+		return new Response(this.stream(options)).arrayBuffer();
 	}
-	text(): Promise<string> {
-		return new Response(this.stream()).text();
+	text(options?: S3FileReadOptions): Promise<string> {
+		return new Response(this.stream(options)).text();
 	}
-	blob(): Promise<Blob> {
-		return new Response(this.stream(), {
+	blob(options?: S3FileReadOptions): Promise<Blob> {
+		return new Response(this.stream(options), {
 			headers: { "Content-Type": this.#contentType },
 		}).blob();
 	}
 
-	stream(): ReadableStream<Uint8Array> {
+	stream(options?: S3FileReadOptions): ReadableStream<Uint8Array> {
 		// This function is called for every operation on the blob
-		return this.#client[kStream](this.#path, undefined, this.#start, this.#end);
+		const versionId = options?.versionId;
+		return this.#client[kStream](
+			this.#path,
+			undefined,
+			this.#start,
+			this.#end,
+			versionId,
+		);
 	}
 
 	async #transformData(
@@ -345,14 +366,24 @@ export default class S3File {
 export interface S3FileDeleteOptions extends OverridableS3ClientOptions {
 	/** Signal to abort the request. */
 	signal?: AbortSignal;
+	/** Version ID to delete a specific version of the object. */
+	versionId?: string;
 }
 export interface S3StatOptions extends OverridableS3ClientOptions {
 	/** Signal to abort the request. */
 	signal?: AbortSignal;
+	/** Version ID to get metadata for a specific version of the object. */
+	versionId?: string;
 }
 export interface S3FileExistsOptions extends OverridableS3ClientOptions {
 	/** Signal to abort the request. */
 	signal?: AbortSignal;
+	/** Version ID to check existence of a specific version of the object. */
+	versionId?: string;
+}
+export interface S3FileReadOptions {
+	/** Version ID to read a specific version of the object. */
+	versionId?: string;
 }
 export type S3FileWriteOptions = {
 	/** Content-Type of the file. */
